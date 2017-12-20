@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Homework 1 Starter</title>
+	<!-- An AMD-loader like RequireJS is necessary for srlib's asynchronous modules -->
+	<script src="require.js"></script>
+	<!-- Load srlib following RequireJS -->
+	<script src="srlib.js"></script>
+	<!-- JQuery provides a very nice set of tools when dealing with AJAX requests -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+	<script type="text/javascript">
+    // This max value for this is 20000. If you go above it, it will limit to 20000. There are 10k arrows and 10k not arrows.
+    // I recommend starting small until all your features calculate correctly, because 20000 will take a few min to fetch and calculate.
+    maxResults = 20000;
+   //global values declare here
+	var max_x; var min_x; var max_y; var min_y; var no_feature_add; 
+	var x_val =0; var y_val =0; var diagonal = null; var S = 0;
+	var x_temp =0; var y_temp = 0; var d= 0; 
+    var mystroke_points = []; var mystrokes = []; var mystroke_points_resample = []; var newstrokes = []; var newstroke_points = [];
+	var f5 = null; var tempxval; var tempyval; var x34; var y34; var time34;
+	var result = 0; var final_add = 0; var x_temp; var y_temp; var x_temp_pminus; var y_temp_pminus; var temp_holder; var aspect_ratio = null;
+	var flag_for_theta_p = null; var DCR = null; var theta_p_arr= []; var total_stroke_length = null; var total_angle = null; var total_abs_angle = null; 
+
+	featureFunctions = [];
+    // The interpretation will automatically be added to each row of csv data for you.
+    // Place the function names to calculate your features here. The function name will be the header of the csv file for that row.
+  /*   featureFunctions = [feature_Cos_of_start, feature_Sin_of_start, feature_aspect_ratio, feature_bb_diagonal_angle, feature_bb_diagonal_len, 
+	feature_cos_start_end, feature_curviness, feature_dist_start_end, feature_relative_rotation, feature_sin_start_end, feature_total_abs_angle, 
+	feature_total_angle, feature_total_squared_angle, feature_total_stroke_len, feature_total_time, feature_density_metric1, feature_density_metric2,
+	feature_openness, feature_area_bb, feature_log_area_bb, feature_long_total_abs, feature_log_total_length, feature_log_aspect]; */
+
+    /* Define your feature functions here
+        Each function needs to return the feature value */
+    
+	function feature_Cos_of_start(sketch) {
+        //console.log(sketch); // Console logging might be beneficial to see the structure.
+		/* Basic structure is as follows
+		{
+			points: {id: {x: int, y: int, time: intString}, ...},
+			shapes: [{interpretation: string}], // Shapes should only have 1 entry and the interpretation is all you care about. Either arrow or something else
+			strokes: [{id: string, time: string, points: [pointId1, pointId2, ...]}, ...]
+		}
+		*/
+		//cos of start angle
+		var x_2=0; var x_0=0; var y_2=0; var y_0=0;
+		x_2 = newstrokes[0][2].x; x_0 = newstrokes[0][0].x; y_2 = newstrokes[0][2].y; y_0 = newstrokes[0][0].y;	
+		return ((x_2-x_0) / (Math.sqrt(Math.pow((x_2-x_0),2) + Math.pow((y_2-y_0),2))));
+	}
+
+	function feature_Sin_of_start(sketch) {
+		//sin of start angle
+		var x_2=0; var x_0=0; var y_2=0; var y_0=0;
+		x_2 = newstrokes[0][2].x; x_0 = newstrokes[0][0].x; y_2 = newstrokes[0][2].y; y_0 = newstrokes[0][0].y;	
+		return ((y_2-y_0) / (Math.sqrt(Math.pow((x_2-x_0),2) + Math.pow((y_2-y_0),2))));
+	}
+    
+    function feature_bb_diagonal_len(sketch) {
+		//bounding box diagonal length
+		if(diagonal){return diagonal;}
+		else{
+			x_val = 0; y_val = 0;
+	    x_val = max_x - min_x;
+		y_val = max_y - min_y;
+		diagonal = Math.sqrt(Math.pow(x_val,2) + Math.pow(y_val,2));
+        return diagonal;
+		}
+    }
+    
+    function feature_bb_diagonal_angle(sketch) {
+		//angle of bb diagonal
+		return (Math.atan((max_y-min_y)/((max_x-min_x)+0.0001)));
+    }
+    function feature_dist_start_end(sketch) {
+		//distance start and last
+		if(f5){}
+		else{
+		var x_0; var y_0; var y_p; var x_p;
+		x_0 = newstrokes[0][0].x; 
+		y_0 = newstrokes[0][0].y;
+		x_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].x;
+		y_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].y;
+		f5 = Math.sqrt(Math.pow((x_p-x_0),2) + Math.pow((y_p-y_0),2) );}
+		return f5;
+    }
+
+    function feature_cos_start_end(sketch) {
+		//cos start and last
+		var x_0; var x_p;
+		if(f5){
+		x_0 = newstrokes[0][0].x;
+		x_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].x;
+		}
+		else{
+		feature_dist_start_end(sketch);
+		x_0 = newstrokes[0][0].x;
+		x_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].x;
+		}
+		return ((x_p-x_0)/f5);
+    }
+
+    function feature_sin_start_end(sketch) {
+		//sin start and last
+		var y_0; var y_p;
+		if(f5){
+		y_0 = newstrokes[0][0].y;
+		y_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].y;
+		} 
+		else{
+		feature_dist_start_end(sketch);
+		y_0 = newstrokes[0][0].y;
+		y_p = newstrokes[(newstrokes.length) - 1][newstrokes[newstrokes.length-1].length -1].y;
+		}
+		return ((y_p-y_0)/f5);
+    }
+    function feature_total_stroke_len(sketch) {
+		//total stroke length
+		if(total_stroke_length){return total_stroke_length;} 
+		else{
+			var result = 0; var final_add = 0; var x_temp = 0; var y_temp =0;
+			for(i=0;i<newstrokes.length;i++){
+				for (j=0;j<(newstrokes[i].length)-1;j++){
+					x_temp = newstrokes[i][j+1].x - newstrokes[i][j].x;
+					y_temp = newstrokes[i][j+1].y - newstrokes[i][j].y;
+					final_add = Math.sqrt(Math.pow(x_temp,2) + Math.pow(y_temp,2));
+					result = result + final_add;
+				}
+			}
+			total_stroke_length = result;
+			return result;
+		}
+    }
+	
+    function feature_total_angle(sketch) {
+		//total angle 
+		if(total_angle){return total_angle;}
+		else{
+		result = 0;
+		if(flag_for_theta_p){
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + theta_p_arr[i];
+			}
+		} 
+		else {
+			calculate_theta_p();
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + theta_p_arr[i];
+			}
+		}
+		if(!isFinite(result))
+		{	for(i=0;i<theta_p_arr.length;i++){
+				console.log(theta_p_arr[i] ); 
+			}
+			}
+		total_angle = result;
+		return result;
+		
+		}
+    }
+	
+    function feature_total_abs_angle(sketch) {
+		//total abs angle 
+		if(total_abs_angle){return total_abs_angle;}
+		else{
+		result = 0;
+		if(flag_for_theta_p){
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + Math.abs(theta_p_arr[i]);
+			}
+		} 
+		else {
+			calculate_theta_p();
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + Math.abs(theta_p_arr[i]);
+			}
+		}
+		total_abs_angle = result;
+		return result;}
+    }
+	
+    function feature_total_squared_angle(sketch) {
+		//total squared angle 
+		result = 0;
+		if(flag_for_theta_p){
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + Math.pow(theta_p_arr[i],2);
+			}
+		} 
+		else {
+			calculate_theta_p();
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + Math.pow(theta_p_arr[i],2);
+			}
+		}
+		return result;
+    }
+
+    function feature_total_time(sketch) {
+		//total time
+		return (newstrokes[newstrokes.length - 1][newstrokes[newstrokes.length-1].length -1].time - newstrokes[0][0].time);
+    }
+
+    function feature_aspect_ratio(sketch) {
+		//aspect ratio
+		if (aspect_ratio){return aspect_ratio;}
+		else{
+			aspect_ratio = Math.abs (0.785398 -(Math.atan((max_y-min_y)/(max_x-min_x))))
+			return aspect_ratio;
+			}
+    }
+	
+    function feature_curviness(sketch) {
+		//curviness 
+		if(flag_for_theta_p){
+			for(i=0;i<theta_p_arr.length;i++){
+				if (theta_p_arr[i] < 0.331613){
+				result = result + Math.abs(theta_p_arr[i]);
+				}
+				else{
+			  result = result + 0;
+				}
+			}
+		} 
+		else {
+		calculate_theta_p();
+			for(i=0;i<theta_p_arr.length;i++){
+				if (theta_p_arr[i] < 0.331613){
+				result = result + Math.abs(theta_p_arr[i]);
+				}
+				else{
+				result = result + 0;
+				}
+			}
+		}	
+		return result;
+    }
+	
+    function feature_relative_rotation(sketch) {
+		//relative rotation 
+		result = 0;
+		if(flag_for_theta_p){
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + theta_p_arr[i];
+			}
+		} 
+		else {
+			calculate_theta_p();
+			for(i=0;i<theta_p_arr.length;i++){
+				result = result + theta_p_arr[i];
+			}
+		}
+		if(total_stroke_length){return (result/total_stroke_length);} 
+		else{feature_total_stroke_len(sketch); return (result/total_stroke_length);}
+		
+    }
+
+    function feature_density_metric1(sketch) {
+		//density_metric1
+		if(total_stroke_length)
+		{
+			if(f5)
+			{
+				return (total_stroke_length/f5);
+			}
+			else
+			{
+				feature_dist_start_end();
+				return (total_stroke_length/f5);
+			}
+		}
+		else
+		{
+			feature_total_stroke_len();
+			if(f5)
+			{
+				return (total_stroke_length/f5);
+			}
+			else
+			{
+				feature_dist_start_end();
+				return (total_stroke_length/f5);
+			}	
+		}
+    }
+	
+	function feature_density_metric2(sketch){
+		//density_metric2
+		if(total_stroke_length)
+		{
+			if(diagonal)
+			{
+				return (total_stroke_length/diagonal);
+			}
+			else
+			{
+				feature_bb_diagonal_len();
+				return (total_stroke_length/diagonal);
+			}
+		}
+		else
+		{
+			feature_total_stroke_len();
+			if(diagonal)
+			{
+				return (total_stroke_length/diagonal);
+			}
+			else
+			{
+				feature_bb_diagonal_len();
+				return (total_stroke_length/diagonal);
+			}	
+		}	
+	}
+
+	function feature_openness(sketch){
+		//non-subjective openness
+		if(f5)
+		{
+			if(diagonal)
+			{
+				return (f5/diagonal);
+			}
+			else
+			{
+				feature_bb_diagonal_len();
+				return (f5/diagonal);
+			}
+		}
+		else
+		{
+			feature_dist_start_end();
+			if(diagonal)
+			{
+				return (f5/diagonal);
+			}
+			else
+			{
+				feature_bb_diagonal_len();
+				return (f5/diagonal);
+			}	
+		}	
+	}
+	
+	function feature_area_bb(sketch){
+		//area of the bounding box
+		
+		if((max_x == min_x)||(max_y == min_y))
+		{ if(total_stroke_length) 
+			{return total_stroke_length;} 
+		  else
+			{feature_total_stroke_len();
+			  return total_stroke_length;}
+		}
+		else{x_val = max_x - min_x; y_val = max_y - min_y;
+			return(Math.abs(x_val) * Math.abs(y_val));}		
+	}
+	
+	function feature_log_area_bb(sketch){
+		//log area of the bounding box
+		
+		if((max_x == min_x)||(max_y == min_y))
+		{ if(total_stroke_length) 
+			{return total_stroke_length;} 
+		  else
+			{feature_total_stroke_len();
+			  return total_stroke_length;}
+		}
+		else{x_val = max_x - min_x; y_val = max_y - min_y;
+			return(Math.log(Math.abs(x_val) * Math.abs(y_val)));}	
+	}
+
+	function feature_log_total_length(sketch){
+		//log of total length
+		if(total_stroke_length)
+		{return(Math.log(total_stroke_length));}
+		else{
+			feature_total_stroke_len();
+			return(Math.log(total_stroke_length));
+		}
+	}
+
+	function feature_log_aspect(sketch){
+		//log of total length
+		if(aspect_ratio)
+		{return(Math.log(aspect_ratio));}
+		else{
+			feature_aspect_ratio();
+			return(Math.log(aspect_ratio));
+		}
+	}
+	
+	function feature_long_total_abs(sketch){
+		//total angle divided by absolute angle
+		if(total_angle)
+		{
+			if(total_abs_angle)
+			{
+				if(total_abs_angle > 0)
+				{return (total_angle/total_abs_angle);}
+				else
+				{ return 0;}
+			}
+			else
+			{
+				feature_total_abs_angle();
+				if(total_abs_angle > 0)
+				{return (total_angle/total_abs_angle);}
+				else
+				{ return 0;}
+			}
+		}
+		else
+		{
+			feature_total_angle();
+			if(total_abs_angle)
+			{
+				if(total_abs_angle > 0)
+				{return (total_angle/total_abs_angle);}
+				else
+				{ return 0;}
+			}
+			else
+			{
+				feature_total_abs_angle();
+				if(total_abs_angle > 0)
+				{return (total_angle/total_abs_angle);}
+				else
+				{ return 0;}
+			}
+		}
+	}
+	
+	function feature_number_of_lines(sketch){
+		//number of lines
+		if(newstrokes.length <=3)
+		{return 1;}
+		else
+		{return 0;}
+
+	}
+	
+		function feature_NDDE(sketch){
+		//NDDE
+			var max = null; var min = null; var final_add = 0; var avg_change = 0;
+			var x_temp; var y_temp; var t_temp; var xpmax =0; var ypmax = 0; var xpmin = 0; var ypmin =0; var z=0;
+			for(i=0;i<newstrokes.length;i++){
+				for (j=0;j<(newstrokes[i].length)-1;j++){
+					x_temp = newstrokes[i][j+1].x - newstrokes[i][j].x;
+					y_temp = newstrokes[i][j+1].y - newstrokes[i][j].y;
+					
+					if(x_temp!=0)
+					{final_add = y_temp/x_temp;
+					z++;
+					avg_change = avg_change + final_add;
+					if(max)
+					{
+						if(final_add>max)
+						{max = final_add; xpmax= i;  ypmax = j; }
+					}
+					else
+					{max = final_add; xpmax= i;  ypmax = j;}
+				
+					if(min)
+					{
+						if(final_add<min)
+						{min = final_add; xpmin= i;  ypmin = j;}
+					}
+					else
+					{min = final_add; xpmin= i;  ypmin = j;}}
+				}
+			}
+			avg_change = avg_change/z;
+			if(avg_change>0 && isFinite(avg_change))
+			{DCR = max/avg_change;
+			//console.log("max : " + max+"  avg_change : "+avg_change);
+			}
+			else
+			{//console.log("picked 0");
+				DCR = 0;}
+			final_add = 0; x_temp = 0; y_temp = 0; var t =0;
+			
+			if(xpmin>xpmax)
+			{t=xpmin; xpmin=xpmax; xpmax =t; t=ypmin; ypmin=ypmax; ypmax =t;}
+			var flag_first_run=0;
+			for(i=xpmin;i<newstrokes.length;i++){
+				for (j= 0;j<(newstrokes[i].length)-1;j++){
+					
+					if(flag_first_run == 0)
+					{j = ypmin;
+					flag_first_run++;}
+				
+					x_temp = newstrokes[i][j+1].x - newstrokes[i][j].x;
+					y_temp = newstrokes[i][j+1].y - newstrokes[i][j].y;
+					final_add = final_add + (Math.sqrt(Math.pow(x_temp,2) + Math.pow(y_temp,2)));
+					if(i == xpmax && j == ypmax)
+					{
+						 
+							break;
+						
+					}
+				}
+			}
+			if(total_stroke_length)
+			{return (final_add/total_stroke_length);}
+			else
+			{feature_total_stroke_len(); return (final_add/total_stroke_length);}
+	}
+
+	function feature_DCR(sketch){
+		//DCR
+		if(DCR)
+		{return DCR;}
+		else
+		{feature_NDDE(); return DCR;}
+	}
+	
+	function feature_number_of_strokes(sketch){
+		//number of strokes
+		return newstrokes.length;
+	}
+	
+	function feature_percent_of_strokes_pass_line_test(sketch){
+		//percent of strokes which pass line test
+			var x_0; var y_0; var y_p; var x_p; var start_to_end = 0; var x_temp; var y_temp; var final_add = 0; var result=0; var pass = 0;
+			for(i = 0;i<newstrokes.length;i++){
+				x_0 = newstrokes[i][0].x; 
+				y_0 = newstrokes[i][0].y;
+				x_p = newstrokes[i][newstrokes[i].length -1].x; 
+				y_p = newstrokes[i][newstrokes[i].length -1].y;
+				start_to_end = Math.sqrt(Math.pow((x_p-x_0),2) + Math.pow((y_p-y_0),2) );
+		
+				for(j=0;j<newstrokes[i].length - 1;j++){
+					x_temp = newstrokes[i][j+1].x - newstrokes[i][j].x; y_temp = newstrokes[i][j+1].y - newstrokes[i][j].y;
+					final_add = Math.sqrt(Math.pow(x_temp,2) + Math.pow(y_temp,2));
+					result = result + final_add;
+				}
+				if(start_to_end/result >= 0.90)
+				{pass++;}
+			}
+			return (pass/newstrokes.length);
+		}
+	
+/* 	function feature_arrow_body_biggest(sketch){
+		if(newstrokes.length == 3)
+			
+		{var start_to_end = 0; var start_to_end1 =0; var start_to_end2 = 0; var max =0; var t=0;
+			for(i = 0;i<newstrokes.length;i++){
+				x_0 = newstrokes[i][0].x; 
+				y_0 = newstrokes[i][0].y;
+				x_p = newstrokes[i][newstrokes[i].length -1].x; 
+				y_p = newstrokes[i][newstrokes[i].length -1].y;
+				if(i ==0)
+				{start_to_end = Math.sqrt(Math.pow((x_p-x_0),2) + Math.pow((y_p-y_0),2) );
+				if (max<start_to_end) {max = start_to_end; t =1;}}
+				if(i ==1)
+				{start_to_end1 = Math.sqrt(Math.pow((x_p-x_0),2) + Math.pow((y_p-y_0),2) );
+				if (max<start_to_end1) {max = start_to_end1; t=2;}}
+				if(i ==2)
+				{start_to_end2 = Math.sqrt(Math.pow((x_p-x_0),2) + Math.pow((y_p-y_0),2) );
+				if (max<start_to_end2) {max = start_to_end2; t=3;}}	
+			}
+			 
+			if(t==1)
+			{if((start_to_end > 1.5*start_to_end1) && (start_to_end > 1.5*start_to_end2) ) {return 1;} else {return 0.5;} }
+			else if(t==2)
+			{if((start_to_end1 > 1.5*start_to_end) && (start_to_end1 > 1.5*start_to_end2)) {return 1;} else {return 0.5;}}
+			else(t==3)
+			{if((start_to_end2 > 1.5*start_to_end) && (start_to_end2 > 1.5*start_to_end1) ) {return 1;} else {return 0.5;}}
+		}
+		else
+		{return 0;}
+	} */
+	
+	function feature_log_of_bb_diagonal(sketch){
+		if(diagonal){ return (Math.log(diagonal));}
+		else{feature_bb_diagonal_len(); return (Math.log(diagonal));}
+	}
+	
+	function feature_max_speed(sketch){
+		//max_speed
+			var result = 0; var final_add = 0; var x_temp = 0; var y_temp = 0; var t_temp = 0;
+			for(i=0;i<newstrokes.length;i++){
+				for (j=0;j<(newstrokes[i].length)-1;j++){
+					x_temp = newstrokes[i][j+1].x - newstrokes[i][j].x;
+					y_temp = newstrokes[i][j+1].y - newstrokes[i][j].y;
+					t_temp = newstrokes[i][j+1].time - newstrokes[i][j].time;
+					if(t_temp!=0)
+					{final_add = (Math.pow(x_temp,2) + Math.pow(y_temp,2))/(Math.pow(t_temp,2));
+					if(final_add > result)
+					{result = final_add;}}
+				}
+			}
+
+	return result;
+	}
+	
+	//calculate theta p value
+	function calculate_theta_p(){
+		flag_for_theta_p = 1;
+		x_temp_p = 0; y_temp_p=0; x_temp_pminus = 0; y_temp_pminus = 0;
+		temp_holder =0; final_add = 0;
+		theta_p_arr = [];
+		for(i=0;i<newstrokes.length;i++){
+			for (j=1;j<(newstrokes[i].length)-1;j++){
+				x_temp_p = newstrokes[i][j+1].x - newstrokes[i][j].x;
+				y_temp_p = newstrokes[i][j+1].y - newstrokes[i][j].y;
+				x_temp_pminus = newstrokes[i][j].x - newstrokes[i][j-1].x;
+				y_temp_pminus = newstrokes[i][j].y - newstrokes[i][j-1].y;
+				final_add = Math.atan(((x_temp_p*y_temp_pminus) - (x_temp_pminus*y_temp_p) ) / ((x_temp_p*x_temp_pminus) + (y_temp_p*y_temp_pminus)+ 0.0001));
+				if(!isFinite(final_add))
+				{console.log("look at temp_holder = "+ temp_holder);}
+				theta_p_arr.push(final_add);
+			}
+		}
+	}
+	//
+	//
+	// Everything below here you shouldn't need to worry about.
+	//
+	//
+    
+    // Begin processing once webpage loaded
+	
+	$(document).ready(function() {
+		
+		document.getElementById('selectbutton').onclick = function() {	
+		var checkfeatures = document.forms[0];
+		for (var i = 1; i < checkfeatures.length; i++) {
+			if (checkfeatures[i].checked) {
+				
+				featureFunctions.push(checkfeatures[i].value);
+			}
+		}
+        features = [[]];
+		// DO NOT REMOVE THESE LINES
+        for (var i = 0; i < featureFunctions.length; i++) {
+            var f = featureFunctions[i];
+            features[0].push(f);
+        }
+		features[0].push('interpretation');
+        getSketchIds();};
+	});
+
+	//begin resampling here. This includes checking for nan, strokes with no points and resamples consecutive identical points
+	function resample(sketch) { 
+		if (sketch.points)
+		{
+			//console.log(sketch);
+		total_stroke_length = null; f5 = null; flag_for_theta_p = null; DCR = null; total_angle = null; total_abs_angle = null; aspect_ratio = null;
+		newstrokes = []; newstroke_points = []; mystroke_points = []; mystrokes = []; mystroke_points_resample = []; theta_p_arr = [];
+		var D = 0; max_x = null; min_x = null; max_y = null; min_y = null; diagonal = null;
+		
+		for(var key = 0; key<sketch.strokes.length; key++){ //loop through the strokes
+				mystroke_points = [];
+		   for (var key2=0; key2<sketch.strokes[key].points.length; key2++) {  //loop through the points of a stroke
+				if (sketch.strokes[key].points[key2]) { //if the point is not null
+						mystroke_points.push(sketch.points[sketch.strokes[key].points[key2]]);  //copy the point with help of sketch.points to fresh array
+					// we shall need max and min values during resampling distance calculation. 
+					//Let's do it here, otherwise must read 2-d array,shouldn't be costly here.	
+						if (max_x)
+						{
+							if (max_x < sketch.points[sketch.strokes[key].points[key2]].x)
+							{
+								max_x = sketch.points[sketch.strokes[key].points[key2]].x;
+						    }
+						}
+						else 
+						{
+							max_x = sketch.points[sketch.strokes[key].points[key2]].x;
+						}
+						if (min_x)
+						{
+							if (min_x > sketch.points[sketch.strokes[key].points[key2]].x)
+							{
+								min_x = sketch.points[sketch.strokes[key].points[key2]].x;
+						    }
+						}
+						else 
+						{
+							min_x = sketch.points[sketch.strokes[key].points[key2]].x;
+						}
+						
+						if (max_y)
+						{
+							if (max_y < sketch.points[sketch.strokes[key].points[key2]].y)
+							{
+								max_y = sketch.points[sketch.strokes[key].points[key2]].y;
+						    }
+						}
+						else 
+						{
+							max_y = sketch.points[sketch.strokes[key].points[key2]].y;
+						}
+						if (min_y)
+						{
+							if (min_y > sketch.points[sketch.strokes[key].points[key2]].y)
+							{
+								min_y = sketch.points[sketch.strokes[key].points[key2]].y;
+						    }
+						}
+						else 
+						{
+							min_y = sketch.points[sketch.strokes[key].points[key2]].y;
+						}
+		    	}
+			 }
+			 if(mystroke_points.length > 0 ) { //only copy the points in final output if some points were found
+					mystrokes.push(mystroke_points); //add points to new array. Have 2d array of stroke and points.
+			 }
+		}
+		//console.log(mystrokes);
+		//for(i=0;i<mystrokes.length;i++){
+			//for(j=0;j<mystroke_points.length;j++){
+				//console.log(mystrokes[i]);
+			//}
+		//}	
+		// console.log("maximum x " + max_x + "max y " + max_y + "min_x " + min_x + "min_y " + min_y);
+		if (mystrokes)
+		{   //start resample_spacing calculation
+	        x_val = max_x - min_x;
+			y_val = max_y - min_y;
+			diagonal = Math.sqrt(Math.pow(x_val,2) + Math.pow(y_val,2));
+			S = diagonal/40.0;
+			//console.log("sample spacing value : " + S);
+			//start resample
+			newstrokes = []; tempxval = 0; tempyval = 0; d = 0;
+			for(i=0;i<mystrokes.length;i++){
+				newstroke_points = [];
+				mystroke_points = mystrokes[i];
+				newstroke_points.push(mystroke_points[0]);
+				for(j=1;j<mystrokes[i].length;j++){
+					var q; 
+					tempxval = mystroke_points[j].x - mystroke_points[j-1].x;
+					tempyval = mystroke_points[j].y - mystroke_points[j-1].y;
+					d = Math.sqrt(Math.pow(tempxval,2) + Math.pow(tempyval,2));
+					//console.log("this is d  :  "+d);
+					if (D + d >= S){
+						x34= mystroke_points[j-1].x + ((S-D)/d) * (tempxval); 
+						y34= mystroke_points[j-1].y + ((S-D)/d) * (tempyval); 
+						time34 = mystroke_points[j].time;
+						
+						q = {x:x34, y:y34, time:time34};
+						newstroke_points.push(q);
+						D =0;
+					}
+					else{
+						D = D+d;
+					}
+				}
+				D = 0;
+/* 				for(t=0;t<mystrokes.length;t++){
+						console.log("stroke : " +t);
+			       for(k=0;k<mystrokes[t].length;k++){
+						console.log("point : "+k+"  This data is original : x -- " + mystrokes[t][k].x +"  y ---"+ mystrokes[t][k].y + "  time --" +mystrokes[t][k].time );
+				   }
+				} */
+
+				if(newstroke_points.length > 2)
+				{ 
+				   newstrokes.push(newstroke_points);
+				}
+/* 				for(t=0;t<newstrokes.length;t++){
+					console.log("stroke : " +t);
+			       for(k=0;k<newstrokes[t].length;k++){
+						console.log("point : "+k+" This data is resampled : x -- " + newstrokes[t][k].x +"  y ---"+ newstrokes[t][k].y + "  time --" +newstrokes[t][k].time );
+				   }
+				} */
+				
+			}
+			if(newstrokes.length < 1)
+			{
+				no_feature_add = 1;
+			}
+			else
+			{//recalculate max and min value here, because you resampled
+			diagonal = null;
+			max_x = null; max_y = null; min_x = null; min_y = null;
+			for(t=0;t<newstrokes.length;t++){
+				for(k=0;k<newstrokes[t].length;k++){
+					if (max_x)
+						{
+							if (max_x < newstrokes[t][k].x)
+							{
+								max_x = newstrokes[t][k].x;
+						    }
+						}
+						else 
+						{
+							max_x = newstrokes[t][k].x;
+						}
+						if (min_x)
+						{
+							if (min_x > newstrokes[t][k].x)
+							{
+								min_x = newstrokes[t][k].x;
+						    }
+						}
+						else 
+						{
+							min_x = newstrokes[t][k].x;
+						}
+						
+						if (max_y)
+						{
+							if (max_y < newstrokes[t][k].y)
+							{
+								max_y = newstrokes[t][k].y;
+						    }
+						}
+						else 
+						{   
+							max_y = newstrokes[t][k].y;
+						}
+						if (min_y)
+						{
+							if (min_y > newstrokes[t][k].y)
+							{
+								min_y = newstrokes[t][k].y;
+						    }
+						}
+						else 
+						{
+							min_y = newstrokes[t][k].y;
+						}
+				}
+			}
+		}
+		}
+		else
+		{
+			no_feature_add = 1;
+		}
+		}
+		else 
+		{
+			no_feature_add = 1;
+		}
+		//return (mystrokes);
+	}
+	
+    function calculateFeatures(sketch) {
+		//console.log(sketch);
+		no_feature_add = 0;
+		resample(sketch); //must resample data
+		if (no_feature_add == 0)
+		{
+			var row = [];
+/* 			if (sketch.shapes[0].interpretation == 'arrow') {
+				row.push('arrow');
+			} else {
+				row.push('other');
+			} */
+
+		// Now just push back all the feature values in order.
+			for (var i = 0; i < featureFunctions.length; i++) {
+				var f = featureFunctions[i];
+				row.push(window[f](sketch));
+			}
+			if (sketch.shapes[0].interpretation == 'arrow') {
+				row.push('arrow');
+			} else {
+				row.push('other');
+			}
+
+		// Finally push the row to the overall features array.
+			features.push(row);
+		}
+	}
+
+	function arrayToObj(array) {
+        var obj = {}
+        for (var i = 0; i < array.length; i++) {
+            var val = array[i];
+            var id = val.id;
+            delete val.id;
+            obj[id] = val;
+        }
+        return obj;
+    }
+
+    // Top answer from https://stackoverflow.com/questions/17836273/export-javascript-data-to-csv-file-without-server-interaction
+    function saveCSV() {
+    	var csvRows = [];
+    	for (var i = 0; i < features.length; i++) {
+    		csvRows.push(features[i].join(','));
+    	}
+
+    	var csvString = csvRows.join('\n');
+        var csvData = new Blob([csvString], { type: 'text/csv' });
+        var csvURL = URL.createObjectURL(csvData);
+    	var a = document.createElement('a');
+        
+    	a.href = csvURL;
+    	a.target = '_blank';
+    	a.download = 'features.csv';
+    	document.body.appendChild(a);
+    	a.click();
+    }
+    var sketch; //trying to not do feature calculation within ajax query
+    function getSketch() {
+		if(counter>0) //make sure feature calculation starts only when we have the first sketch
+		{   //console.log(sketch);
+		calculateFeatures(sketch);} //trying to not do feature calculation within ajax query
+    	if (counter == sketchIds.length || counter == maxResults) { saveCSV(); return; } // Reached the last sketch.
+    	var id = sketchIds[counter];
+    	counter++;
+		$.ajax({
+			type: "GET",
+			url: "http://srl-prod1.cs.tamu.edu:7750/getSketches?id=" + id,
+			dataType: 'json',
+			contentType: "application/json",
+			success: function(res) {
+				sketch = res[0];
+				sketch.points = arrayToObj(sketch.points);
+				document.getElementById('progress').textContent = 'Calculating features for sketch ' + counter + ' of ' + maxResults;
+				//calculateFeatures(sketch);
+				getSketch();
+			}
+		});
+    }
+
+	function selectallfunc(selectall) {
+		//console.log("inside select all");
+		var checkfeatures = document.forms[0];
+		for(var i=1;i<checkfeatures.length;i++) {
+			if("checkbox" == checkfeatures[i].type)
+				checkfeatures[i].checked = selectall.checked;
+		}
+	}
+	
+	// Load data, populating global list of sketchIds
+	var sketchIds;
+	var counter = 0;
+	function getSketchIds() {
+		$.ajax({url: "http://srl-prod1.cs.tamu.edu:7750/getIds?domain=SketchRec2017", success: function(result) {
+			sketchIds = result;
+			getSketch();
+		}});
+	}
+	</script>
+</head>
+<!-- The body consists simply of a canvas for drawing and a selection list; this display is for the user's benefit, not required -->
+<body>
+
+<div id='progress'>0</div>
+<p>Choose features</p>
+<form>
+<input type="checkbox" name="checkfeatures" onclick="selectallfunc(this);" value="SelectAll">Select All<br>
+<input type="checkbox" name="checkfeatures" value="feature_bb_diagonal_len">Bounding box diagonal length<br> 
+<input type="checkbox" name="checkfeatures" value="feature_dist_start_end">Distance start to end<br> 
+<input type="checkbox" name="checkfeatures" value="feature_total_stroke_len">Total stroke length<br> 
+<input type="checkbox" name="checkfeatures" value="feature_area_bb">Area bounding box<br> 
+<input type="checkbox" name="checkfeatures" value="feature_log_area_bb">Log area bounding box<br> 
+<input type="checkbox" name="checkfeatures" value="feature_density_metric1">Density metric 1<br> 
+<input type="checkbox" name="checkfeatures" value="feature_density_metric2">Density metric 2<br> 
+<input type="checkbox" name="checkfeatures" value="feature_log_total_length">Log total length<br> 
+<input type="checkbox" name="checkfeatures" value="feature_max_speed">Max_speed<br> 
+<input type="checkbox" name="checkfeatures" value="feature_log_of_bb_diagonal">Log bounding box diagonal<br> 
+
+
+
+<br>
+<input id="selectbutton" type="button" value="Calculate!">
+<br><br>
+
+</form>
+
+</body>
+</html>
